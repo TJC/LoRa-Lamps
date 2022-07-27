@@ -4,3 +4,6 @@ A very early-stage personal art project.
 
 Targets ESP32 microcontrollers running Micropython, using GPS and LoRa network.
 
+## High-level software architecture
+
+![](software-architecture.jpg)
