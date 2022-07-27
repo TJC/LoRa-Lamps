@@ -1,0 +1,6 @@
+
+To get a terminal:
+
+screen /dev/cu.usbserial-* 115200
+
+Inside terminal, quitting is: Ctrl-a k
