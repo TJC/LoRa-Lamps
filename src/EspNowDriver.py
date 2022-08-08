@@ -19,8 +19,9 @@ class EspNowDriver:
 
     def init():
         # A WLAN interface must be active to send()/recv()
-        network.WLAN(network.STA_IF).active(True)
-        # .config(protocol=network.MODE_LR)
+        wlan = network.WLAN(network.STA_IF)
+        wlan.active(True)
+        wlan.config(protocol=network.MODE_LR)
         EspNowDriver.myEspNow = aioespnow.AIOESPNow()
         EspNowDriver.myEspNow.active(True)
         EspNowDriver.myEspNow.add_peer(
