@@ -2,6 +2,7 @@ import network
 import uasyncio as asyncio
 import aioespnow
 import ujson
+import os
 
 # the asyncio version has different methods
 # https://micropython-glenn20.readthedocs.io/en/latest/library/espnow.html
@@ -22,7 +23,7 @@ class EspNowDriver:
         wlan = network.WLAN(network.STA_IF)
         wlan.active(True)
         wlan.config(protocol=network.MODE_LR)
-        # This particular board requires setting this to use wifi at all:
+        # This particular board requires setting this specific power to use wifi at all:
         if os.uname().machine.startswith("LOLIN_C3_MINI"):
             wlan.config(txpower=8.5)
         EspNowDriver.myEspNow = aioespnow.AIOESPNow()
@@ -36,7 +37,7 @@ class EspNowDriver:
         j = ujson.dumps(msg)
         await EspNowDriver.myEspNow.asend(EspNowDriver.broadcastMac, j, False)
 
-    async def heartbeat(period=5):
+    async def heartbeat(period=2):
         i = 0
         while True:
             await EspNowDriver.send({"ping": i})
@@ -65,3 +66,10 @@ class EspNowDriver:
                 decoded = None
             return decoded
         return None
+
+
+# For copy-paste testing:
+# EspNowDriver.init()
+# asyncio.new_event_loop()
+# asyncio.run(EspNowDriver.recvLoop())
+# asyncio.run(EspNowDriver.heartbeat())
