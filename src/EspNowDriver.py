@@ -22,6 +22,9 @@ class EspNowDriver:
         wlan = network.WLAN(network.STA_IF)
         wlan.active(True)
         wlan.config(protocol=network.MODE_LR)
+        # This particular board requires setting this to use wifi at all:
+        if os.uname().machine.startswith("LOLIN_C3_MINI"):
+            wlan.config(txpower=8.5)
         EspNowDriver.myEspNow = aioespnow.AIOESPNow()
         EspNowDriver.myEspNow.active(True)
         EspNowDriver.myEspNow.add_peer(
