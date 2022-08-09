@@ -1,6 +1,5 @@
 import uasyncio as asyncio
-from machine import SPI, Pin, I2C
-from neopixel import NeoPixel
+from machine import Pin, I2C
 import ssd1306
 
 # Driver for the OLED screen on the LoRa32
