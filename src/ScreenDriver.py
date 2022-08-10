@@ -1,4 +1,3 @@
-import uasyncio as asyncio
 from machine import Pin, I2C
 import ssd1306
 
@@ -15,8 +14,12 @@ class ScreenDriver:
         i2c = I2C(1, scl=Pin(22), sda=Pin(21), freq=100000)
         self.display = ssd1306.SSD1306_I2C(128, 64, i2c)
 
+    # TODO: Wrap lines that are 16+ characters long?
     def print(self, msg):
-        # TODO: wrap text over more lines if it's longer than 16 chars,
-        # or if it contains newlines.
-        self.display.text(msg, 0, 0, 1)
+        yOffset = 0
+        self.display.fill(0)
+        lines = msg.split()
+        for line in lines:
+            self.display.text(line, 0, yOffset, 1)
+            yOffset += 9
         self.display.show()
