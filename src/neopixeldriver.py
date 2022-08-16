@@ -3,6 +3,7 @@ from machine import Pin
 from neopixel import NeoPixel
 from adafruit_fancyled import adafruit_fancyled as fancyled
 import os
+import random
 
 
 class NeopixelDriver:
@@ -43,3 +44,56 @@ class NeopixelDriver:
             fancyled.denormalize(rgb.green),
             fancyled.denormalize(rgb.blue),
         )
+
+    # input should be 0-255
+    def heatColour(temp256: int):
+        heatramp = 3 * (temp256 % 86)  # heatramp at most 255
+        if temp256 < 86:  # coolest third
+            return (heatramp, 0, 0)  # ramp up red, no green or blue
+        elif temp256 < 171:
+            return (255, heatramp, 0)  # full red, ramp up green, no blue yet
+        else:
+            return (255, 255, heatramp)  # full red & green, ramp up blue
+
+    # Modified version of the original Fire2012 algorithm from FastLED
+    async def fire2022():
+        random.seed()
+
+        # Suggested range 20-100. Default 55
+        COOLING = 55
+        COOLING_FACTOR = int(10 * COOLING / NeopixelDriver.LED_COUNT) + 2
+        SPARKING_FACTOR = 0.28
+
+        cells = [0] * NeopixelDriver.LED_COUNT
+
+        while True:
+            # Step 1, cool down every cell a little
+            for i in range(0, NeopixelDriver.LED_COUNT):
+                cells[i] = cells[i] - random.randint(0, COOLING_FACTOR)
+                if cells[i] < 0:
+                    cells[i] = 0
+
+            # Step 2, Heat from each cell drifts up and diffuses a little
+            for i in range(NeopixelDriver.LED_COUNT - 1, 1, -1):
+                cells[i] = int((cells[i - 1] + cells[i - 2] + cells[i - 2]) / 3)
+
+            # Step 3, randomly ignite new sparks of heat near the bottom
+            if random.random() < SPARKING_FACTOR:
+                i = random.randint(0, 8)
+                cells[i] = cells[i] + random.randint(160, 250)
+                if cells[i] > 255:
+                    cells[i] = 255
+
+            # Step 4, map from heat cells to LED colours
+            for i in range(0, NeopixelDriver.LED_COUNT):
+                NeopixelDriver.leds[i] = NeopixelDriver.heatColour(cells[i])
+
+            # Finally, write out the pixels and then delay
+            NeopixelDriver.leds.write()
+            await asyncio.sleep_ms(33)
+
+
+# from neopixeldriver import NeopixelDriver
+# NeopixelDriver.init()
+# import uasyncio
+# uasyncio.run(NeopixelDriver.fire2022())
