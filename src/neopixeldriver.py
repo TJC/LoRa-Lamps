@@ -9,6 +9,8 @@ import random
 class NeopixelDriver:
     LED_COUNT = 87
     leds: NeoPixel = None
+    effectLeds: list[tuple[int, int, int]] = [(0, 0, 0)] * LED_COUNT
+    trigger: asyncio.Event = None
 
     def init():
         if os.uname().machine.startswith("LOLIN_C3_MINI"):
@@ -19,6 +21,33 @@ class NeopixelDriver:
             # undecided, could be 15 or 14 or 27
             ledPin = Pin(15, Pin.OUT)
         NeopixelDriver.leds = NeoPixel(ledPin, NeopixelDriver.LED_COUNT)
+        NeopixelDriver.trigger = asyncio.Event()
+
+    async def mainLoop():
+        while True:
+            await NeopixelDriver.trigger.wait()
+            NeopixelDriver.trigger.clear()
+
+            # Integrate the other effects.. let's do this hackily for now:
+            for i in range(0, NeopixelDriver.LED_COUNT):
+                NeopixelDriver.leds[i] = NeopixelDriver.mergeWithClamp(
+                    NeopixelDriver.leds[i], NeopixelDriver.effectLeds[i]
+                )
+
+            NeopixelDriver.leds.write()
+
+    # A simple effect we can trigger to see if sensors work..
+    async def pulseEffect():
+        for i in range(0, 128):
+            for j in range(55, NeopixelDriver.LED_COUNT):
+                NeopixelDriver.effectLeds[j] = (i, i, i)
+            await asyncio.sleep_ms(15)
+        for i in range(128, 0, -1):
+            for j in range(55, NeopixelDriver.LED_COUNT):
+                NeopixelDriver.effectLeds[j] = (i, i, i)
+            await asyncio.sleep_ms(15)
+        for j in range(55, NeopixelDriver.LED_COUNT):
+            NeopixelDriver.effectLeds[j] = (0, 0, 0)
 
     def blank():
         NeopixelDriver.leds.fill((0, 0, 0))
@@ -35,6 +64,12 @@ class NeopixelDriver:
             offset = (offset + 1) % NeopixelDriver.LED_COUNT
             NeopixelDriver.leds.write()
             asyncio.sleep_ms(20)
+
+    def mergeWithClamp(a, b):
+        r = min(255, a[0] + b[0])
+        g = min(255, a[1] + b[1])
+        b = min(255, a[2] + b[2])
+        return (r, g, b)
 
     def CHSVtoTuple8(hsv):
         """Returns a 3x8bit tuple, suitable for uPython neopixel library."""
@@ -89,7 +124,7 @@ class NeopixelDriver:
                 NeopixelDriver.leds[i] = NeopixelDriver.heatColour(cells[i])
 
             # Finally, write out the pixels and then delay
-            NeopixelDriver.leds.write()
+            NeopixelDriver.trigger.set()
             await asyncio.sleep_ms(33)
 
 

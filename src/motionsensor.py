@@ -1,6 +1,7 @@
 import utime
 from machine import Pin
 import uasyncio as asyncio
+from neopixeldriver import NeopixelDriver
 
 
 class MotionSensor:
@@ -20,8 +21,8 @@ class MotionSensor:
     async def watchSensor():
         while True:
             await MotionSensor.flag.wait()
-            # MotionSensor.flag.clear() # I think it's already cleared by wait()?
             print("Motion sensed!")
+            await NeopixelDriver.pulseEffect()
 
 
 # import uasyncio
