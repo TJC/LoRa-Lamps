@@ -44,7 +44,7 @@ class GpsDriver:
         uart = machine.UART(
             1,
             rx=25,
-            tx=26,  # not used!
+            tx=None, # Was pin 26
             baudrate=9600,
             bits=8,
             parity=None,
