@@ -16,6 +16,7 @@ class Boards:
         "extLedPin": 6,
         "ledCount": 87,
         "gpsRxPin": 25,
+        "gpsTxPin": 26,
         "pirPin": 7,
         "mode": "dev",
     }
@@ -26,6 +27,7 @@ class Boards:
         "extLedPin": 16,  # same physical pin as C3
         "ledCount": 87,
         "gpsRxPin": 37,
+        "gpsTxPin": 39,
         "pirPin": 11,
         "mode": "dev",
     }
@@ -36,6 +38,7 @@ class Boards:
         "extLedPin": 15,
         "ledCount": 87,
         "gpsRxPin": None,
+        "gpsTxPin": None,
         "pirPin": None,
         "mode": "dev",
     }
@@ -46,6 +49,7 @@ class Boards:
         "extLedPin": 15,
         "ledCount": 87,
         "gpsRxPin": None,
+        "gpsTxPin": None,
         "pirPin": None,
         "mode": "dev",
     }

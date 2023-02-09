@@ -15,7 +15,8 @@ import os
 class EspNowDriver:
     myEspNow = None
     broadcastMac = b"\xff" * 6
-    # The key is a very, very simple way to avoid unrelated JSON packets getting broadcast
+    # The key is a very, very simple way to avoid unrelated JSON packets that might be getting
+    # broadcast by other systems..
     key = 12345
 
     def init():
@@ -48,7 +49,7 @@ class EspNowDriver:
     async def recvLoop():
         while True:
             msg = await EspNowDriver.recv()
-            print("R:", msg)
+            print(f"ESPNOW:{msg}")
         # async for mac, msg in EspNowDriver.myEspNow:
         #     if msg != None:
         #         decoded = ujson.loads(msg)

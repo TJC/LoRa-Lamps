@@ -2,68 +2,87 @@ import uasyncio as asyncio
 from machine import Pin
 from neopixel import NeoPixel
 from adafruit_fancyled import adafruit_fancyled as fancyled
-import os
-import random
+import utime
+from boards import Boards
+from lighteffects import LightEffects
 
 
 class NeopixelDriver:
-    LED_COUNT = 87
+    LED_COUNT = 1  # Updated by init()
     leds: NeoPixel = None
     effectLeds: list[tuple[int, int, int]] = [(0, 0, 0)] * LED_COUNT
+
     trigger: asyncio.Event = None
+    # You then use:
+    # await NeopixelDriver.trigger.wait()
+    # NeopixelDriver.trigger.clear()
+    # (in other thread) NeopixelDriver.trigger.set()
+
+    # Contains tuples of effect id, and start time
+    # TODO: Function pointers instead of ids?
+    effectList: list[tuple[str, int]] = []
+
+    effectListLock = asyncio.Lock()
 
     def init():
-        if os.uname().machine.startswith("LOLIN_C3_MINI"):
-            ledPin = Pin(6, Pin.OUT)
-        elif os.uname().machine.startswith("LILYGO TTGO LoRa32"):
-            ledPin = Pin(15, Pin.OUT)  # undecided
-        elif os.uname().machine.startswith("TinyPICO with ESP32-PICO-D4"):
-            # undecided, could be 15 or 14 or 27
-            ledPin = Pin(15, Pin.OUT)
-        NeopixelDriver.leds = NeoPixel(ledPin, NeopixelDriver.LED_COUNT)
+        boardInfo = Boards.metadata()
+        pin = Pin(boardInfo["extLedPin"], Pin.OUT)
+        NeopixelDriver.LED_COUNT = boardInfo["ledCount"]
+        NeopixelDriver.leds = NeoPixel(pin, NeopixelDriver.LED_COUNT)
         NeopixelDriver.trigger = asyncio.Event()
+
+    async def addEffect(id: str):
+        async with NeopixelDriver.effectListLock:
+            i = (id, utime.ticks_ms())
+            NeopixelDriver.effectList.append(i)
+
+    # Remove an item from the list, by INDEX not id.. (since we might have multiple effects at the same time)
+    async def removeEffectId(idx: int):
+        async with NeopixelDriver.effectListLock:
+            del NeopixelDriver.effectList[idx]
 
     async def mainLoop():
         while True:
-            await NeopixelDriver.trigger.wait()
-            NeopixelDriver.trigger.clear()
+            effects = []
+            currentTicks = utime.ticks_ms()
+            NeopixelDriver.leds.fill((0, 0, 0))
 
-            # Integrate the other effects.. let's do this hackily for now:
-            for i in range(0, NeopixelDriver.LED_COUNT):
-                NeopixelDriver.leds[i] = NeopixelDriver.mergeWithClamp(
-                    NeopixelDriver.leds[i], NeopixelDriver.effectLeds[i]
+            # Take a local copy of the effects list safely
+            async with NeopixelDriver.effectListLock:
+                effects = NeopixelDriver.effectList
+
+            for idx, item in enumerate(effects):
+                (id, startMs) = item
+                # print(f"Proc effect {id}")
+
+                results = NeopixelDriver.procEffect(
+                    id, NeopixelDriver.LED_COUNT, currentTicks - startMs
                 )
+                if results == None:
+                    # XXX bug here, index won't be consistent or constant
+                    await NeopixelDriver.removeEffectId(idx)
+                else:
+                    # Integrate effects
+                    for i in range(0, NeopixelDriver.LED_COUNT):
+                        NeopixelDriver.leds[i] = NeopixelDriver.mergeWithClamp(
+                            NeopixelDriver.leds[i], results[i]
+                        )
 
+            # print("Writing LEDs. First LED = " + str(NeopixelDriver.leds[0]))
             NeopixelDriver.leds.write()
+            await asyncio.sleep_ms(20)
 
-    # A simple effect we can trigger to see if sensors work..
-    async def pulseEffect():
-        for i in range(0, 128):
-            for j in range(55, NeopixelDriver.LED_COUNT):
-                NeopixelDriver.effectLeds[j] = (i, i, i)
-            await asyncio.sleep_ms(15)
-        for i in range(128, 0, -1):
-            for j in range(55, NeopixelDriver.LED_COUNT):
-                NeopixelDriver.effectLeds[j] = (i, i, i)
-            await asyncio.sleep_ms(15)
-        for j in range(55, NeopixelDriver.LED_COUNT):
-            NeopixelDriver.effectLeds[j] = (0, 0, 0)
-
-    def blank():
-        NeopixelDriver.leds.fill((0, 0, 0))
-        NeopixelDriver.leds.write()
-
-    async def rainbow_loop():
-        offset = 0
-        while True:
-            for i in range(NeopixelDriver.LED_COUNT):
-                hue = (
-                    (offset + i) % NeopixelDriver.LED_COUNT
-                ) / NeopixelDriver.LED_COUNT
-                NeopixelDriver.leds[i] = NeopixelDriver.CHSVtoTuple8(fancyled.CHSV(hue))
-            offset = (offset + 1) % NeopixelDriver.LED_COUNT
-            NeopixelDriver.leds.write()
-            asyncio.sleep_ms(20)
+    # Just a factory method until we use function pointers instead of ids..
+    def procEffect(id: str, ledCount: int, elapsedMs: int):
+        if id == "idleLight":
+            return LightEffects.idleLight(ledCount, elapsedMs)
+        elif id == "quickPulse":
+            return LightEffects.quickPulse(ledCount, elapsedMs)
+        elif id == "mediumRedBlue":
+            return LightEffects.mediumRedBlue(ledCount, elapsedMs)
+        else:
+            print(f"Unknown effect id: {id}")
+            return None
 
     def mergeWithClamp(a, b):
         r = min(255, a[0] + b[0])
@@ -89,43 +108,6 @@ class NeopixelDriver:
             return (255, heatramp, 0)  # full red, ramp up green, no blue yet
         else:
             return (255, 255, heatramp)  # full red & green, ramp up blue
-
-    # Modified version of the original Fire2012 algorithm from FastLED
-    async def fire2022():
-        random.seed()
-
-        # Suggested range 20-100. Default 55
-        COOLING = 55
-        COOLING_FACTOR = int(10 * COOLING / NeopixelDriver.LED_COUNT) + 2
-        SPARKING_FACTOR = 0.28
-
-        cells = [0] * NeopixelDriver.LED_COUNT
-
-        while True:
-            # Step 1, cool down every cell a little
-            for i in range(0, NeopixelDriver.LED_COUNT):
-                cells[i] = cells[i] - random.randint(0, COOLING_FACTOR)
-                if cells[i] < 0:
-                    cells[i] = 0
-
-            # Step 2, Heat from each cell drifts up and diffuses a little
-            for i in range(NeopixelDriver.LED_COUNT - 1, 1, -1):
-                cells[i] = int((cells[i - 1] + cells[i - 2] + cells[i - 2]) / 3)
-
-            # Step 3, randomly ignite new sparks of heat near the bottom
-            if random.random() < SPARKING_FACTOR:
-                i = random.randint(0, 8)
-                cells[i] = cells[i] + random.randint(160, 250)
-                if cells[i] > 255:
-                    cells[i] = 255
-
-            # Step 4, map from heat cells to LED colours
-            for i in range(0, NeopixelDriver.LED_COUNT):
-                NeopixelDriver.leds[i] = NeopixelDriver.heatColour(cells[i])
-
-            # Finally, write out the pixels and then delay
-            NeopixelDriver.trigger.set()
-            await asyncio.sleep_ms(33)
 
 
 # from neopixeldriver import NeopixelDriver
