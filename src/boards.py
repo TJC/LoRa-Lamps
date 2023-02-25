@@ -18,6 +18,7 @@ class Boards:
         "gpsRxPin": 25,
         "gpsTxPin": 26,
         "pirPin": 7,
+        "adcPin": None,
         "mode": "dev",
     }
 
@@ -29,6 +30,7 @@ class Boards:
         "gpsRxPin": 37,
         "gpsTxPin": 39,
         "pirPin": 11,
+        "adcPin": 5,
         "mode": "dev",
     }
 
@@ -40,6 +42,7 @@ class Boards:
         "gpsRxPin": None,
         "gpsTxPin": None,
         "pirPin": None,
+        "adcPin": 33,
         "mode": "dev",
     }
 
@@ -51,6 +54,7 @@ class Boards:
         "gpsRxPin": None,
         "gpsTxPin": None,
         "pirPin": None,
+        "adcPin": None,
         "mode": "dev",
     }
 
