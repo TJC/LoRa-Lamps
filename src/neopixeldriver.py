@@ -55,8 +55,10 @@ class NeopixelDriver:
                 (id, startMs) = item
                 # print(f"Proc effect {id}")
 
+                elapsedMs = utime.ticks_diff(currentTicks, startMs)
+
                 results = NeopixelDriver.procEffect(
-                    id, NeopixelDriver.LED_COUNT, currentTicks - startMs
+                    id, NeopixelDriver.LED_COUNT, elapsedMs
                 )
                 if results == None:
                     # XXX bug here, index won't be consistent or constant
