@@ -1,10 +1,12 @@
 from machine import ADC, Pin
 from neopixel import NeoPixel
 import utime
+import urandom
 
 LED_PIN = 6  # 16 Lolin Wemos S2. Is pin 6 on the C3. 15 on tinypico
 LED_COUNT = 6
-ADC_PIN = 2  # 33 on Tinypico. 5 on Wemos s2 and c3. 2 on the C3 I messed up..
+ADC_PIN = 3  # 33 on Tinypico. 5 on Wemos s2 and c3.
+# On the board I messed up, the c3=pin 3
 DC_OFFSET = const(1255000)
 
 
@@ -16,9 +18,6 @@ class BoxTrigger:
         self.colour = colour
         self.v = v
         self.startTime = utime.ticks_ms()
-
-    def v(self) -> int:
-        return self.v
 
     def decay(self, nowTime) -> None:
         elapsed = max(1, min(BoxTrigger.decayPeriod, (nowTime - self.startTime)))
@@ -33,12 +32,19 @@ class BoxTrigger:
 
     def rgb(self):
         v = int(self.v)
+        hv = int(self.v / 2)
         if self.colour == 0:
             return (v, 0, 0)
         elif self.colour == 1:
             return (0, v, 0)
         elif self.colour == 2:
             return (0, 0, v)
+        elif self.colour == 3:
+            return (hv, hv, 0)
+        elif self.colour == 4:
+            return (hv, 0, hv)
+        elif self.colour == 5:
+            return (0, hv, hv)
 
 
 class LightboxFX:
@@ -49,8 +55,7 @@ class LightboxFX:
         self.triggers: list[BoxTrigger] = []
         self.lastBox = 0
         self.numBoxes = 3
-        self.lastColour = 0
-        self.numColours = 3
+        self.numColours = 6
 
     # Try to get the max absolute value, over a 10ms period
     def getMaxRead(self) -> int:
@@ -96,6 +101,8 @@ class LightboxFX:
 
         self.np.write()
 
+    # Merges and also clamps to 255; useful because I actually set the initial
+    # brightness to 256 because it divides by 2 nicely..
     def mergeRGB(self, a, b):
         r = min(255, a[0] + b[0])
         g = min(255, a[1] + b[1])
@@ -103,9 +110,10 @@ class LightboxFX:
         return (r, g, b)
 
     def addTrigger(self) -> None:
-        box = (self.lastBox + 1) % self.numBoxes
-        colour = (self.lastColour + 1) % self.numColours
-        self.triggers.append(BoxTrigger(box, colour, 255))
+        boxIncrement = urandom.randint(1, self.numBoxes - 1)
+        box = (self.lastBox + boxIncrement) % self.numBoxes
+        colour = urandom.randint(0, self.numColours - 1)
+        self.triggers.append(BoxTrigger(box, colour, 256))
         self.lastBox = box
         self.lastColour = colour
 
@@ -120,5 +128,4 @@ class LightboxFX:
 
 
 # from lightboxfx import LightboxFX
-# LightboxFX().mainloop(1.7, 250)
-# LightboxFX().mainloop(1.5, 200)
+# LightboxFX().mainloop(1.7, 200)
