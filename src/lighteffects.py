@@ -1,4 +1,5 @@
 import math
+from thisboard import ThisBoard
 
 
 # Implements LED effects
@@ -57,4 +58,31 @@ class LightEffects:
         r = int(255 * brightness * r)
         b = int(255 * brightness * b)
         results = [(r, 0, b)] * ledCount
+        return results
+
+    # Aims to take 450ms, and have a green light travel up the tower quickly, then
+    # light the whole top part solidly
+    def quickPulse2(ledCount: int, elapsedMs: int):
+        results = [(0, 0, 0)] * ledCount
+        if elapsedMs > 450:
+            return None
+        elif elapsedMs >= 400:
+            for i in range(ThisBoard.initialTopLed, ThisBoard.finalTopLed + 1):
+                results[i] = (0, 255, 0)
+        elif elapsedMs >= 0:
+            idx = int(
+                ThisBoard.initialTowerLed
+                + (
+                    (ThisBoard.finalTowerLed - ThisBoard.initialTowerLed)
+                    * (elapsedMs / 400)
+                )
+            )
+            results[idx] = (0, 255, 0)
+            if idx > 0:
+                results[idx - 1] = (0, 255, 0)
+            if idx < ThisBoard.finalTowerLed:
+                results[idx + 1] = (0, 255, 0)
+        else:
+            return None
+
         return results

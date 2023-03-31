@@ -20,30 +20,34 @@ class NeopixelDriver:
 
     # Contains tuples of effect id, and start time
     # TODO: Function pointers instead of ids?
-    effectList: list[tuple[str, int]] = []
+    effectList: dict[str, tuple[str, int]] = {}
 
     effectListLock = asyncio.Lock()
 
     def init():
         boardInfo = Boards.metadata()
         pin = Pin(boardInfo["extLedPin"], Pin.OUT)
-        NeopixelDriver.LED_COUNT = boardInfo["ledCount"]
+        NeopixelDriver.LED_COUNT = boardInfo[
+            "ledCount"
+        ]  # TODO: Use ThisBoards metadata
         NeopixelDriver.leds = NeoPixel(pin, NeopixelDriver.LED_COUNT)
         NeopixelDriver.trigger = asyncio.Event()
 
     async def addEffect(id: str):
+        now = utime.ticks_us()
+        uniqId = f"{id}{now}"
         async with NeopixelDriver.effectListLock:
             i = (id, utime.ticks_ms())
-            NeopixelDriver.effectList.append(i)
+            NeopixelDriver.effectList[uniqId] = i
 
     # Remove an item from the list, by INDEX not id.. (since we might have multiple effects at the same time)
-    async def removeEffectId(idx: int):
+    async def removeEffectId(idx: str):
         async with NeopixelDriver.effectListLock:
             del NeopixelDriver.effectList[idx]
 
     async def mainLoop():
         while True:
-            effects = []
+            effects = {}
             currentTicks = utime.ticks_ms()
             NeopixelDriver.leds.fill((0, 0, 0))
 
@@ -51,7 +55,7 @@ class NeopixelDriver:
             async with NeopixelDriver.effectListLock:
                 effects = NeopixelDriver.effectList
 
-            for idx, item in enumerate(effects):
+            for idx, item in effects.items():
                 (id, startMs) = item
                 # print(f"Proc effect {id}")
 
@@ -61,7 +65,6 @@ class NeopixelDriver:
                     id, NeopixelDriver.LED_COUNT, elapsedMs
                 )
                 if results == None:
-                    # XXX bug here, index won't be consistent or constant
                     await NeopixelDriver.removeEffectId(idx)
                 else:
                     # Integrate effects
@@ -80,6 +83,8 @@ class NeopixelDriver:
             return LightEffects.idleLight(ledCount, elapsedMs)
         elif id == "quickPulse":
             return LightEffects.quickPulse(ledCount, elapsedMs)
+        elif id == "quickPulse2":
+            return LightEffects.quickPulse2(ledCount, elapsedMs)
         elif id == "mediumRedBlue":
             return LightEffects.mediumRedBlue(ledCount, elapsedMs)
         else:
@@ -110,9 +115,3 @@ class NeopixelDriver:
             return (255, heatramp, 0)  # full red, ramp up green, no blue yet
         else:
             return (255, 255, heatramp)  # full red & green, ramp up blue
-
-
-# from neopixeldriver import NeopixelDriver
-# NeopixelDriver.init()
-# import uasyncio
-# uasyncio.run(NeopixelDriver.fire2022())
