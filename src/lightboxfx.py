@@ -56,21 +56,39 @@ class BoxTrigger:
             return (0, hv, hv)
 
 
+class TopLedFX:
+    def __init__(self) -> None:
+        pin = Pin(TOP_LED_PIN, Pin.OUT)
+        self.topleds = NeoPixel(pin, 7)
+        self.currentHue: float = 0.0
+        self.currentLed: int = 0
+
+    # Lighting for on top of the control box:
+    # Only uses LEDs 1-6 though (the circle ones)
+    # Relies on the main beat detection function to update some state, which is a bit hacky
+    def topLedTick(self):
+        self.currentLed = (self.currentLed + 1) % 6
+        self.currentHue = self.currentHue + 0.1 + 0.2 * urandom.random()
+        if self.currentHue > 1.0:
+            self.currentHue = self.currentHue - 1.0
+        self.topleds.fill((0, 0, 0))
+        colour = NeopixelDriver.CHSVtoTuple8(fancyled.CHSV(self.currentHue))
+        self.topleds[1 + self.currentLed] = colour
+        self.topleds.write()
+
+
 class LightboxFX:
     def __init__(self) -> None:
-        self.numBoxes = 7
+        self.numBoxes = 6
         self.numColours = 6
         pin = Pin(LED_PIN, Pin.OUT)
-        self.np = NeoPixel(pin, self.numBoxes * 2)
+        self.np = NeoPixel(pin, 18)
+        # Num pins was self.numBoxes * 2 until I went with the left/right mirror
         self.adc = ADC(Pin(ADC_PIN), atten=ADC.ATTN_11DB)
         self.triggers: list[BoxTrigger] = []
         self.lastBox = 0
-
-        pin2 = Pin(TOP_LED_PIN, Pin.OUT)
-        self.topleds = NeoPixel(pin2, 7)
-        self.lastSpinnerUpdate = (
-            0  # Used to skip three out of four updates for the top leds
-        )
+        self.topLedFx = TopLedFX()
+        self.topLedFx.topLedTick()
 
     # Try to get the max absolute value, over a 10ms period
     def getMaxRead(self) -> int:
@@ -98,11 +116,21 @@ class LightboxFX:
                 if rollingAvg > 90000 and v > q * rollingAvg:
                     lastTriggeredAt = utime.ticks_ms()
                     self.addTrigger()
+                    self.topLedFx.topLedTick()
 
             self.writeBoxes()
             self.sweepFinishedTriggers()
-            self.topLedSpinner()
-            # utime.sleep_ms(1)
+
+    # Mirror the left side to the right side, but flip it vertically:
+    def writeMappedLed(self, boxId: int, val: tuple[int, int, int]) -> None:
+        if boxId == 0:
+            self.np[0] = self.np[1] = self.np[16] = self.np[17] = val
+        elif boxId == 1:
+            self.np[2] = self.np[3] = self.np[14] = self.np[15] = val
+        elif boxId == 2:
+            self.np[4] = self.np[5] = self.np[12] = self.np[13] = val
+        else:
+            self.np[boxId * 2] = self.np[(boxId * 2) + 1] = val
 
     # Note that my current demo has two LEDs per box, but that will probably change in final version
     # Thus the t*2 stuff might need to change.
@@ -113,7 +141,7 @@ class LightboxFX:
             curPixVal = self.np[t.boxId * 2]
             thisVal = t.rgb()
             newVal = self.mergeRGB(curPixVal, thisVal)
-            self.np[t.boxId * 2] = self.np[(t.boxId * 2) + 1] = newVal
+            self.writeMappedLed(t.boxId, newVal)
 
         self.np.write()
 
@@ -142,26 +170,7 @@ class LightboxFX:
         for t in self.triggers:
             t.decay(nowTime)
 
-    # Lighting for on top of the control box:
-    # Only uses LEDs 1-6 though (the circle ones)
-    def topLedSpinner(self):
-        now = utime.ticks_ms()
-        if self.lastSpinnerUpdate > 0:
-            self.lastSpinnerUpdate -= 1
-            return
-
-        self.lastSpinnerUpdate = 4
-
-        hueOffset = (now % 12000) / 12000
-        ledOffset = (now % 5000) / 5000
-
-        ledId = min(6, int(1 + 6 * ledOffset))
-        self.topleds.fill((0, 0, 0))
-        colour = NeopixelDriver.CHSVtoTuple8(fancyled.CHSV(hueOffset))
-        self.topleds[ledId] = colour
-        self.topleds.write()
-
 
 # Suitable main.py looks like:
 # from lightboxfx import LightboxFX
-# LightboxFX().mainloop(1.6, 200)
+# LightboxFX().mainloop(1.5, 200)
