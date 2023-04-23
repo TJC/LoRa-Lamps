@@ -78,6 +78,8 @@ class TopLedFX:
 
 
 class LightboxFX:
+    PossibleTriggerFactors = [1.1, 1.2, 1.25, 1.3, 1.35, 1.4, 1.5, 1.6, 1.7, 1.85, 2.0]
+
     def __init__(self) -> None:
         self.numBoxes = 6
         self.numColours = 6
@@ -100,7 +102,12 @@ class LightboxFX:
             utime.sleep_us(1000)
         return maxval
 
-    def mainloop(self, q: float, retriggerDelay: int) -> None:
+    def mainloop(self, retriggerDelay: int) -> None:
+        rollingTriggerCount = 0  # Used to adjust the trigger factor level automatically
+        lastTriggerSensitivityCheck = utime.ticks_ms()
+        # Index into PossibleTriggerFactors. Will auto adjust over time
+        triggerFactorLevel = 6
+
         windowSize = const(75)
         rollingAvg: float = 0
         lastTriggeredAt: int = 0
@@ -112,11 +119,30 @@ class LightboxFX:
 
             self.updateTriggerValues()
 
-            if utime.ticks_diff(utime.ticks_ms(), lastTriggeredAt) >= retriggerDelay:
-                if rollingAvg > 90000 and v > q * rollingAvg:
-                    lastTriggeredAt = utime.ticks_ms()
+            ticks_now = utime.ticks_ms()
+
+            if utime.ticks_diff(ticks_now, lastTriggeredAt) >= retriggerDelay:
+                if (
+                    rollingAvg > 90000
+                    and v
+                    > LightboxFX.PossibleTriggerFactors[triggerFactorLevel] * rollingAvg
+                ):
+                    rollingTriggerCount += 1
+                    lastTriggeredAt = ticks_now
                     self.addTrigger()
                     self.topLedFx.topLedTick()
+
+            # Every five seconds, check if the sensitivity needs adjusting
+            if utime.ticks_diff(ticks_now, lastTriggerSensitivityCheck) >= 5000:
+                if rollingTriggerCount < 6 and triggerFactorLevel > 0:
+                    triggerFactorLevel -= 1
+                    print(f"Changing trigger level to {triggerFactorLevel}")
+                elif rollingTriggerCount > 15 and triggerFactorLevel < 10:
+                    # 10 is maximum index of the possible factors array
+                    triggerFactorLevel += 1
+                    print(f"Changing trigger level to {triggerFactorLevel}")
+                rollingTriggerCount = 0
+                lastTriggerSensitivityCheck = ticks_now
 
             self.writeBoxes()
             self.sweepFinishedTriggers()
@@ -173,4 +199,4 @@ class LightboxFX:
 
 # Suitable main.py looks like:
 # from lightboxfx import LightboxFX
-# LightboxFX().mainloop(1.5, 200)
+# LightboxFX().mainloop(200)
