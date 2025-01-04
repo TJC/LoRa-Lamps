@@ -1,4 +1,4 @@
 #!/bin/sh
 tty=$(ls -1 /dev/cu.usb*|head -n 1)
 #screen $tty 115200
-mpremote connect $tty
+mpremote connect "$tty"

@@ -10,6 +10,19 @@ import micropython
 import ujson
 
 
+async def testMain():
+    print("Starting up testMain()")
+    board = Boards.metadata()
+    InitialSelfTest().run()
+
+    NeopixelDriver.init()
+    # await NeopixelDriver.addEffect("idleLight")
+    asyncio.create_task(NeopixelDriver.mainLoop())
+
+    # Simulate some events until we get real ones:
+    await simulate130bpm()
+
+
 async def eventReceiverMain():
     print("Starting up")
     board = Boards.metadata()
@@ -68,7 +81,7 @@ async def audioInputMain():
 async def simulate130bpm():
     while True:
         await asyncio.sleep_ms(461)  # 130 bpm
-        await NeopixelDriver.addEffect("quickPulse")
+        await NeopixelDriver.addEffect("quickPulse2")
 
 
 async def simulateSlowPulse():
@@ -82,5 +95,6 @@ async def simulateSlowPulse():
 # try:
 #     asyncio.run(main.audioInputMain())
 #     asyncio.run(main.eventReceiverMain())
+#     asyncio.run(main.testMain())
 # finally:
 #     asyncio.new_event_loop()

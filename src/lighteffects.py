@@ -9,6 +9,7 @@ from thisboard import ThisBoard
 class LightEffects:
     # Implements some simple lighting, used when no other effects are playing
     # For now, it's a solid warm-white breathing animation
+    @staticmethod
     def idleLight(ledCount: int, elapsedMs: int):
         brightness = math.sin(math.pi * (elapsedMs % 10000) / 10000)
         r = 1 + int(30 * brightness)
@@ -18,6 +19,7 @@ class LightEffects:
         return results
 
     # A quick (200ms) pulse of green, might be used for bass beats?
+    @staticmethod
     def quickPulse(ledCount: int, elapsedMs: int):
         brightness = 0.0
         if elapsedMs >= 200:
@@ -34,6 +36,7 @@ class LightEffects:
         return results
 
     # A medium speed (2000ms) red->blue transition with fade in/out
+    @staticmethod
     def mediumRedBlue(ledCount: int, elapsedMs: int):
         brightness = 0.0
         if elapsedMs >= 2000:
@@ -62,6 +65,7 @@ class LightEffects:
 
     # Aims to take 450ms, and have a green light travel up the tower quickly, then
     # light the whole top part solidly
+    @staticmethod
     def quickPulse2(ledCount: int, elapsedMs: int):
         results = [(0, 0, 0)] * ledCount
         if elapsedMs > 450:

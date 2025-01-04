@@ -19,6 +19,7 @@ class EspNowDriver:
     # broadcast by other systems..
     key = 12345
 
+    @staticmethod
     def init():
         # A WLAN interface must be active to send()/recv()
         wlan = network.WLAN(network.STA_IF)
@@ -33,11 +34,13 @@ class EspNowDriver:
             EspNowDriver.broadcastMac, channel=0, encrypt=False
         )
 
+    @staticmethod
     async def send(msg: object):
         msg["_key_"] = EspNowDriver.key
         j = ujson.dumps(msg)
         await EspNowDriver.myEspNow.asend(EspNowDriver.broadcastMac, j, False)
 
+    @staticmethod
     async def heartbeat(period=2):
         i = 0
         while True:
@@ -46,6 +49,7 @@ class EspNowDriver:
             await asyncio.sleep(period)
 
     # This is really just for testing at the moment
+    @staticmethod
     async def recvLoop():
         while True:
             msg = await EspNowDriver.recv()
@@ -55,6 +59,7 @@ class EspNowDriver:
         #         decoded = ujson.loads(msg)
         #         print("R:", decoded)
 
+    @staticmethod
     async def recv():
         [mac, msg] = await EspNowDriver.myEspNow.arecv()
         print("Raw:", msg)

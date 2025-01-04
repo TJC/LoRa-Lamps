@@ -24,6 +24,7 @@ class NeopixelDriver:
 
     effectListLock = asyncio.Lock()
 
+    @staticmethod
     def init():
         boardInfo = Boards.metadata()
         pin = Pin(boardInfo["extLedPin"], Pin.OUT)
@@ -33,6 +34,7 @@ class NeopixelDriver:
         NeopixelDriver.leds = NeoPixel(pin, NeopixelDriver.LED_COUNT)
         NeopixelDriver.trigger = asyncio.Event()
 
+    @staticmethod
     async def addEffect(id: str):
         now = utime.ticks_us()
         uniqId = f"{id}{now}"
@@ -41,10 +43,12 @@ class NeopixelDriver:
             NeopixelDriver.effectList[uniqId] = i
 
     # Remove an item from the list, by INDEX not id.. (since we might have multiple effects at the same time)
+    @staticmethod
     async def removeEffectId(idx: str):
         async with NeopixelDriver.effectListLock:
             del NeopixelDriver.effectList[idx]
 
+    @staticmethod
     async def mainLoop():
         while True:
             effects = {}
@@ -78,6 +82,7 @@ class NeopixelDriver:
             await asyncio.sleep_ms(20)
 
     # Just a factory method until we use function pointers instead of ids..
+    @staticmethod
     def procEffect(id: str, ledCount: int, elapsedMs: int):
         if id == "idleLight":
             return LightEffects.idleLight(ledCount, elapsedMs)
@@ -91,12 +96,14 @@ class NeopixelDriver:
             print(f"Unknown effect id: {id}")
             return None
 
+    @staticmethod
     def mergeWithClamp(a, b):
         r = min(255, a[0] + b[0])
         g = min(255, a[1] + b[1])
         b = min(255, a[2] + b[2])
         return (r, g, b)
 
+    @staticmethod
     def CHSVtoTuple8(hsv):
         """Returns a 3x8bit tuple, suitable for uPython neopixel library."""
         rgb = fancyled.CRGB(hsv)
@@ -107,6 +114,7 @@ class NeopixelDriver:
         )
 
     # input should be 0-255
+    @staticmethod
     def heatColour(temp256: int):
         heatramp = 3 * (temp256 % 86)  # heatramp at most 255
         if temp256 < 86:  # coolest third
